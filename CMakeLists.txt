@@ -55,6 +55,12 @@ option(CRYMP_DEBUG_ALLOCATOR_CHECK_READS "Check for both invalid reads and write
 
 option(CRYMP_TRACY_ENABLED "Enable Tracy profiler." OFF)
 
+option(CRYMP_PAK_HOT_RELOADING_ENABLED "Use the Pak folder directly for hot reloading. For development only." OFF)
+
+if(CRYMP_PAK_HOT_RELOADING_ENABLED)
+	set(CRYMP_PAK_HOT_RELOADING_PATH ${PROJECT_SOURCE_DIR}/Pak)
+endif()
+
 ################################################################################
 
 math(EXPR BUILD_BITS "${CMAKE_SIZEOF_VOID_P} * 8")
