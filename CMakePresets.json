@@ -46,9 +46,9 @@
 			}
 		},
 		{
-			"name": "hot-reloading-bin32",
+			"name": "hot-reload-bin32",
 			"inherits": "base-bin32",
-			"displayName": "Hot reloading (32-bit)",
+			"displayName": "Hot Reload (32-bit)",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "RelWithDebInfo",
 				"CRYMP_PAK_HOT_RELOADING_ENABLED": "ON"
@@ -57,7 +57,7 @@
 		{
 			"name": "hot-reloading-bin64",
 			"inherits": "base-bin64",
-			"displayName": "Hot reloading (64-bit)",
+			"displayName": "Hot Reload (64-bit)",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "RelWithDebInfo",
 				"CRYMP_PAK_HOT_RELOADING_ENABLED": "ON"
