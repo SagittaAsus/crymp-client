@@ -998,7 +998,7 @@ void CNanoSuit::SelectSuitMaterial()
 	if (!m_pOwner)
 		return;
 
-	if (m_currentMode == NANOMODE_CLOAK && m_cloak.GetType() != CLOAKMODE_CHAMELEON)
+	if (g_GameCvars->mp_cloakfunction && m_currentMode == NANOMODE_LAST && m_cloak.GetType() != NANOMODE_CLOAK) //CryMP: Added by Sagitta
 		return;
 
 	IEntity* pEntity = m_pOwner->GetEntity();
