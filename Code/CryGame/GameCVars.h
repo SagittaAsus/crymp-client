@@ -472,6 +472,7 @@ struct SCVars
 	int         mp_radioTagging;
 	int         mp_healthBars;
 	int         mp_recycleProjectiles;
+    int         mp_cloakfunction;
 	float		mp_abandonTime;
 	float		mp_explosiveRemovalTime;
 
