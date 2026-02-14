@@ -472,7 +472,7 @@ struct SCVars
 	int         mp_radioTagging;
 	int         mp_healthBars;
 	int         mp_recycleProjectiles;
-    int         mp_c2CloakEffect;
+    int         mp_ogCloakEffect;
 	float		mp_abandonTime;
 	float		mp_explosiveRemovalTime;
 
