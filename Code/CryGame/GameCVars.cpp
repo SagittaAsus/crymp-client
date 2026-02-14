@@ -617,7 +617,7 @@ void SCVars::InitCVars(IConsole* pConsole)
 	pConsole->Register("mp_netSerializeMaxSpeed", &mp_netSerializeMaxSpeed, 9.0f, OPTIONAL_SYNC, "Maximum character speed");
 	pConsole->Register("mp_radioTagging", &mp_radioTagging, 0, OPTIONAL_SYNC, "Enable tagging positions using radio");
 	pConsole->Register("mp_healthBars", &mp_healthBars, 0, OPTIONAL_SYNC, "Enable displaying health bars");
-	pConsole->Register("mp_ogCloakEffect", &mp_ogCloakEffect, 0, OPTIONAL_SYNC, "Enables old cloak function");
+	pConsole->Register("mp_ogCloakEffect", &mp_ogCloakEffect, 1, OPTIONAL_SYNC, "Enables old cloak function");
 
 	//CryMP CVars (un-synced)
 	pConsole->Register("mp_newSpectator", &mp_newSpectator, 1, VF_NOT_NET_SYNCED, "");
