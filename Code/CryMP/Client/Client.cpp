@@ -11,23 +11,23 @@
 #include "CryMP/Common/Executor.h"
 #include "CryMP/Common/GSMasterHook.h"
 #include "CryMP/Common/ScriptBind_CPPAPI.h"
+#include "CryMP/Common/ServerPAK.h"
 #include "CrySystem/GameWindow.h"
 #include "CrySystem/Logger.h"
 #include "CrySystem/RandomGenerator.h"
 #include "Launcher/Resources.h"
-#include "Library/StdFile.h"
 #include "Library/Util.h"
 #include "Library/WinAPI.h"
 
 #include "Client.h"
 #include "FileDownloader.h"
 #include "FileCache.h"
+#include "HandGripRegistry.h"
 #include "MapDownloader.h"
 #include "ScriptCommands.h"
 #include "ScriptCallbacks.h"
 #include "ServerBrowser.h"
 #include "ServerConnector.h"
-#include "ServerPAK.h"
 #include "EngineCache.h"
 #include "ParticleManager.h"
 #include "DrawTools.h"
@@ -38,22 +38,14 @@
 
 void Client::InitMasters()
 {
-	std::string content;
+	m_masters.clear();
 
-	if (StdFile file("masters.txt", "r"); file.IsOpen())  // Crysis main directory
+	if (const std::string_view mastersArg(WinAPI::CmdLine::GetArgValue("-masters")); !mastersArg.empty())
 	{
-		CryLogAlways("$6[CryMP] Using local masters.txt as the master server list provider");
-
-		content = file.ReadAll();
-	}
-	else
-	{
-		content = WinAPI::GetDataResource(nullptr, RESOURCE_MASTERS_TXT);
-	}
-
-	for (const std::string_view & master : Util::SplitWhitespace(content))
-	{
-		m_masters.emplace_back(master);
+		for (const std::string_view& master : Util::Split(mastersArg, ","))
+		{
+			m_masters.emplace_back(master);
+		}
 	}
 
 	if (m_masters.empty())
@@ -208,6 +200,7 @@ void Client::Init(IGameFramework *pGameFramework)
 	m_pHTTPClient        = std::make_unique<HTTPClient>(*m_pExecutor);
 	m_pFileDownloader    = std::make_unique<FileDownloader>();
 	m_pFileCache         = std::make_unique<FileCache>();
+	m_pHandGripRegistry  = std::make_unique<HandGripRegistry>();
 	m_pMapDownloader     = std::make_unique<MapDownloader>();
 	m_pGSMasterHook      = std::make_unique<GSMasterHook>();
 	m_pScriptCommands    = std::make_unique<ScriptCommands>();
@@ -271,6 +264,7 @@ void Client::Init(IGameFramework *pGameFramework)
 	pScriptSystem->ExecuteFile("CryMP/Scripts/RPC.lua", true, true);
 	pScriptSystem->ExecuteFile("CryMP/Scripts/Client.lua", true, true);
 	pScriptSystem->ExecuteFile("CryMP/Scripts/Localization.lua", true, true);
+	pScriptSystem->ExecuteFile("CryMP/Scripts/HandGripData.lua", true, true);
 
 	InitMasters();
 
@@ -280,6 +274,8 @@ void Client::Init(IGameFramework *pGameFramework)
 	// mods are not supported
 	m_pGame = new CGame();
 	m_pGame->Init(pGameFramework);
+
+	m_pFileCache->Cleanup(86400);
 }
 
 void Client::UpdateLoop()
@@ -516,14 +512,8 @@ void Client::OnLevelNotFound(const char *levelName)
 
 void Client::OnLoadingStart(ILevelInfo *pLevel)
 {
-	ICVar* pLodMin = gEnv->pConsole->GetCVar("e_lod_min");
-	if (pLodMin && pLodMin->GetIVal())
-	{
-		//CryMP: Temporary fix for invisible objects
-		pLodMin->Set(0);
-		CryLogAlways("$3[CryMP] Setting Min LOD to zero");
-	}
-	
+	this->FixCVars();
+
 	gEnv->pScriptSystem->ForceGarbageCollection();
 
 	m_pServerPAK->OnLoadingStart(pLevel);
@@ -643,4 +633,68 @@ void Client::SynchWithPhysicsPosition(IEntity* pEntity)
 			pPhysEnt->Action(&awake);
 		}
 	}
+}
+
+template<int Value>
+static void LockCVarValueTo(const char* cvar)
+{
+	ICVar* pCVar = gEnv->pConsole->GetCVar(cvar);
+	if (pCVar)
+	{
+		if (gEnv->bMultiplayer)
+		{
+			pCVar->Set(Value);
+		}
+
+		pCVar->SetOnChangeCallback([](ICVar* pCVar) {
+			if (gEnv->bMultiplayer)
+			{
+				pCVar->Set(Value);
+			}
+		});
+	}
+}
+
+static void LimitDetailMaterialsViewDistMinValue(const char* cvar)
+{
+	constexpr float MIN_VALUE = 64.f;  // low spec
+
+	ICVar* pCVar = gEnv->pConsole->GetCVar(cvar);
+	if (pCVar)
+	{
+		if (gEnv->bMultiplayer && pCVar->GetFVal() < MIN_VALUE)
+		{
+			pCVar->Set(MIN_VALUE);
+		}
+
+		// can't be net-synced because the value is not the same in all specs:
+		// ... e_detail_materials_view_dist_xy = 64/2048/2048/2048/2048
+		// ... e_detail_materials_view_dist_z = 64/128/128/128/128
+		pCVar->SetOnChangeCallback([](ICVar* pCVar) {
+			if (gEnv->bMultiplayer && pCVar->GetFVal() < MIN_VALUE)
+			{
+				pCVar->Set(MIN_VALUE);
+			}
+		});
+	}
+}
+
+void Client::FixCVars()
+{
+	ICVar* pLodMin = gEnv->pConsole->GetCVar("e_lod_min");
+	if (pLodMin && pLodMin->GetIVal())
+	{
+		// CryMP: Temporary fix for invisible objects
+		pLodMin->Set(0);
+		CryLogAlways("$3[CryMP] Setting Min LOD to zero");
+	}
+
+	// CryMP: problematic cvars that aren't net-synced
+	LockCVarValueTo<0>("r_ATOC");  // non-zero value hides vegetation
+	LockCVarValueTo<1>("e_decals");  // zero value hides roads and stuff
+	LockCVarValueTo<1>("r_WaterReflections");  // zero value makes the ocean black
+
+	// CryMP: these cvars are not net-synced and break terrain textures when set too low (zero)
+	LimitDetailMaterialsViewDistMinValue("e_detail_materials_view_dist_xy");
+	LimitDetailMaterialsViewDistMinValue("e_detail_materials_view_dist_z");
 }

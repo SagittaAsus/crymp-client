@@ -867,7 +867,7 @@ void CHUD::PlayerIdSet(EntityId playerId)
 
 		GetMissionObjectiveSystem().DeactivateObjectives(true); //this should remove all "old" objectives
 	}
-	else
+	else if(m_pClientActor)
 	{
 		m_pClientActor->UnregisterPlayerEventListener(this);
 		if (CNanoSuit* pSuit = m_pClientActor->GetNanoSuit())
@@ -2996,8 +2996,8 @@ void CHUD::GetGPSPosition(wchar_t* szN, wchar_t* szW)
 	int iW3 = (iW - iW1 * 1000000 - iW2 * 10000) / 100;
 	int iW4 = (iW - iW1 * 1000000 - iW2 * 10000 - iW3 * 100);
 
-	wstring strNorth = LocalizeWithParams("@ui_N");
-	wstring strWest = LocalizeWithParams("@ui_W");
+	std::wstring strNorth = LocalizeWithParams("@ui_N");
+	std::wstring strWest = LocalizeWithParams("@ui_W");
 
 	CrySwprintf(szN, 32, L"%.2d\"%.2d'%.2d.%.2d %s", iN1, iN2, iN3, iN4, strNorth.c_str());
 	CrySwprintf(szW, 32, L"%.2d\"%.2d'%.2d.%.2d %s", iW1, iW2, iW3, iW4, strWest.c_str());
@@ -3112,6 +3112,11 @@ bool CHUD::WeaponHasAttachments()
 void CHUD::OnPostUpdate(float frameTime)
 {
 	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+
+	if (frameTime > 0.05f)
+	{
+		frameTime = 0.05f;
+	}
 
 	if (m_bStopCutsceneNextUpdate)
 	{
@@ -3704,7 +3709,7 @@ void CHUD::UpdateSpectator(CPlayer* pSpectatorTarget, float frameTime)
 		m_prevSpectatorMode = specMode;
 		m_prevSpectatorTarget = m_pClientActor->GetSpectatorTarget();
 
-		wstring mapText, functionalityText;
+		std::wstring mapText, functionalityText;
 		// don't want the 'press m to...' text if waiting to respawn
 		if (!m_pGameRules->IsPlayerActivelyPlaying(m_pClientActor->GetEntityId()))
 		{
@@ -3737,7 +3742,7 @@ void CHUD::UpdateSpectator(CPlayer* pSpectatorTarget, float frameTime)
 			}
 
 			// waiting to respawn - must be in 3rd person mode. Just show 'press left/right to switch player'
-			mapText = L"";
+			mapText.clear();
 			functionalityText = LocalizeWithParams("@ui_spectate_functionality_dead");
 		}
 		SFlashVarValue textArgs[3] = { mapText.c_str(), functionalityText.c_str(), true };
@@ -4392,7 +4397,7 @@ void CHUD::OnNetKill(CActor* pVictim, CActor* pShooter, EntityId shooterId, cons
 		}
 	}
 
-	if (!victimIsClient)
+	if (gEnv->bMultiplayer && g_pGameCVars->mp_deadPlayersOnMinimap && !victimIsClient && m_pGameRules->IsHostile(shooterId, victimId))
 	{
 		//Show victim on minimap for 5 seconds
 		GetRadar()->ShowEntityTemporarily(RadarIcon::None, MiniMapIcon::DeathSkull, victimId, 5.0f);
@@ -4601,11 +4606,9 @@ void CHUD::UpdateObjective(CHUDMissionObjective* pObjective)
 		{
 			if (!pObjective->IsSilent() /*&& pObjective->GetStatus() != CHUDMissionObjective::DEACTIVATED*/)
 			{
-				const wchar_t* localizedText = LocalizeWithParams(description.c_str());
-				wstring text = localizedText;
-				localizedText = LocalizeWithParams(status);
-				text.append(L" ");
-				text.append(localizedText);
+				std::wstring text = LocalizeWithParams(description.c_str());
+				text += L" ";
+				text += LocalizeWithParams(status);
 				SFlashVarValue args[3] = { text.c_str(), 1, Col_White.pack_rgb888() };
 				m_animMessages.Invoke("setMessageText", args, 3);
 				if (pObjective->GetStatus() == CHUDMissionObjective::COMPLETED)
@@ -5443,9 +5446,8 @@ void CHUD::GameOver(int localWinner, int winnerTeam, EntityId id)
 		}
 	}
 
-	const wchar_t* localizedText = L"";
-	localizedText = LocalizeWithParams(message, false, param);
-	m_animScoreBoard.Invoke("setWinText", localizedText);
+	std::wstring localizedText = LocalizeWithParams(message, false, param);
+	m_animScoreBoard.Invoke("setWinText", localizedText.c_str());
 
 	//SFlashVarValue args[2] = { localizedText, false };
 	//m_animMPMessages.Invoke("addKillLog", args, 2);

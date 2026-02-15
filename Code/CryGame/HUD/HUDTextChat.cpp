@@ -267,7 +267,7 @@ void CHUDTextChat::AddChatMessage(const char* nick, const wchar_t* msg, int team
 
 	if (teamChat)
 	{
-		wstring nameAndTarget = m_pHUD->LocalizeWithParams("@ui_chat_team", true, nick);
+		std::wstring nameAndTarget = m_pHUD->LocalizeWithParams("@ui_chat_team", true, nick);
 		SFlashVarValue args[3] = { nameAndTarget.c_str(), msg, teamFaction };
 		m_flashChat->Invoke("setChatText", args, 3);
 	}
@@ -287,7 +287,7 @@ void CHUDTextChat::AddChatMessage(const char* nick, const char* msg, int teamFac
 
 	if (teamChat)
 	{
-		wstring nameAndTarget = m_pHUD->LocalizeWithParams("@ui_chat_team", true, nick);
+		std::wstring nameAndTarget = m_pHUD->LocalizeWithParams("@ui_chat_team", true, nick);
 		SFlashVarValue args[3] = { nameAndTarget.c_str(), msg, teamFaction };
 		m_flashChat->Invoke("setChatText", args, 3);
 	}
@@ -303,6 +303,12 @@ void CHUDTextChat::OpenChat(int type)
 	if (!m_flashChat || m_isListening)
 	{
 		return;
+	}
+
+	CRadio* pRadio = g_pGame->GetGameRules() ? g_pGame->GetGameRules()->GetRadio() : nullptr;
+	if (pRadio && (pRadio->IsOpen() || pRadio->IsPending()))
+	{
+		pRadio->CloseRadioMenu();
 	}
 
 	m_isListening = true;

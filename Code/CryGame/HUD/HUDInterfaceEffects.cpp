@@ -29,6 +29,7 @@
 #include "CryGame/Items/Weapons/OffHand.h"
 #include "CryGame/GameActions.h"
 #include "CryCommon/CryGame/GameUtils.h"
+#include "Library/StringTools.h"
 
 void CHUD::QuickMenuSnapToMode(ENanoMode mode)
 {
@@ -1476,8 +1477,7 @@ void CHUD::UpdateVoiceChat()
 			{			
 				if(g_pGame->GetIGameFramework()->IsVoiceRecordingEnabled())
 				{
-					SUIWideString voice(pEntity->GetName());
-					m_animVoiceChat.Invoke("addVoice", voice.c_str());
+					m_animVoiceChat.Invoke("addVoice", pEntity->GetName());
 					someoneTalking = true;
 				}
 			}
@@ -1485,8 +1485,7 @@ void CHUD::UpdateVoiceChat()
 			{
 				if(pNetChannel->TimeSinceVoiceReceipt(pEntity->GetId()).GetSeconds() < 0.2f)
 				{
-					SUIWideString voice(pEntity->GetName());
-					m_animVoiceChat.Invoke("addVoice", voice.c_str());
+					m_animVoiceChat.Invoke("addVoice", pEntity->GetName());
 					someoneTalking = true;
 				}
 			}
@@ -1844,9 +1843,8 @@ void CHUD::ShowProgress(int progress, bool init /* = false */, int posX /* = 0 *
 		}
 
 		pAnim->Invoke("showProgressBar", true);
-		const wchar_t* localizedText = text.empty() ? L"" : LocalizeWithParams(text.data(), true);
-
-		SFlashVarValue args[2] = {localizedText, topText ? 1 : 2};
+		std::wstring localizedText = LocalizeWithParams(text.data(), true);
+		SFlashVarValue args[2] = {localizedText.c_str(), topText ? 1 : 2};
 		pAnim->Invoke("setText", args, 2);
 		SFlashVarValue pos[2] = {posX*1024/800, posY*768/512};
 		pAnim->Invoke("setPosition", pos, 2);
