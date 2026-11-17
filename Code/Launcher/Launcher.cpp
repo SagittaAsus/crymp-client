@@ -1327,21 +1327,6 @@ void Launcher::LoadEngine()
 			// only the latest Crysis 1.2.1 is supported
 			break;
 		}
-		case 6527:
-		case 6566:
-		case 6586:
-		case 6627:
-		case 6670:
-		case 6729:
-		{
-			throw StringTools::ErrorFormat("Crysis Wars is not supported!");
-		}
-		case 687:
-		case 710:
-		case 711:
-		{
-			throw StringTools::ErrorFormat("Crysis Warhead is not supported!");
-		}
 		default:
 		{
 			throw StringTools::ErrorFormat("Unknown game build %d!", gameBuild);
