@@ -556,8 +556,6 @@ add_library(Base OBJECT
 	Code/CryMP/Client/SpeedAggregator.h
 	Code/CryMP/Client/WeatherSystem.cpp
 	Code/CryMP/Client/WeatherSystem.h
-	Code/CryMP/Client/EngineCache.cpp
-	Code/CryMP/Client/EngineCache.h
 	Code/CryMP/Common/Executor.cpp
 	Code/CryMP/Common/Executor.h
 	Code/CryMP/Common/ServerPAK.cpp
@@ -1001,6 +999,7 @@ add_library(CryGame OBJECT
 	Code/CryGame/HUD/HUDVehicleInterface.h
 	Code/CryGame/HUD/HUDWeaponAccessories.cpp
 	Code/CryGame/HUD/ScriptBind_HUD.cpp
+	Code/CryGame/HUD/TeamSelectionPreview.cpp
 	Code/CryGame/HUD/ScriptBind_HUD.h
 	Code/CryGame/Items/FlowItemAnimation.cpp
 	Code/CryGame/Items/FlowItemAnimation.h
