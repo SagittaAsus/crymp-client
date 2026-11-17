@@ -526,8 +526,6 @@ add_library(Base OBJECT
 	Code/CryMP/Client/Client.h
 	Code/CryMP/Client/DrawTools.cpp
 	Code/CryMP/Client/DrawTools.h
-	Code/CryMP/Client/EngineCache.cpp
-	Code/CryMP/Client/EngineCache.h
 	Code/CryMP/Client/FFontHooks.cpp
 	Code/CryMP/Client/FFontHooks.h
 	Code/CryMP/Client/FileCache.cpp
@@ -558,6 +556,8 @@ add_library(Base OBJECT
 	Code/CryMP/Client/SpeedAggregator.h
 	Code/CryMP/Client/WeatherSystem.cpp
 	Code/CryMP/Client/WeatherSystem.h
+	Code/CryMP/Client/EngineCache.cpp
+	Code/CryMP/Client/EngineCache.h
 	Code/CryMP/Common/Executor.cpp
 	Code/CryMP/Common/Executor.h
 	Code/CryMP/Common/ServerPAK.cpp
@@ -1684,13 +1684,13 @@ add_executable(${CRYMP_SERVER_EXE} WIN32
 )
 
 target_link_libraries(${CRYMP_CLIENT_EXE} PRIVATE Base CryGame libogg libvorbis CrySoundSystem OpenAL DSOAL)
-target_link_libraries(${CRYMP_SERVER_EXE} PRIVATE Base CryGame)
 target_link_libraries(${CRYMP_EDITOR_EXE} PRIVATE Base CryGame)
+target_link_libraries(${CRYMP_SERVER_EXE} PRIVATE Base CryGame)
 
 # use these only in Launcher code to avoid recompiling everything for each exe
 target_compile_definitions(${CRYMP_CLIENT_EXE} PRIVATE CLIENT_LAUNCHER)
-target_compile_definitions(${CRYMP_SERVER_EXE} PRIVATE SERVER_LAUNCHER)
 target_compile_definitions(${CRYMP_EDITOR_EXE} PRIVATE EDITOR_LAUNCHER)
+target_compile_definitions(${CRYMP_SERVER_EXE} PRIVATE SERVER_LAUNCHER)
 
 if(CRYMP_CONSOLE_APP)
 	set_target_properties(${CRYMP_CLIENT_EXE} PROPERTIES WIN32_EXECUTABLE FALSE)
