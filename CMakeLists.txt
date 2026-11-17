@@ -4,7 +4,6 @@ cmake_minimum_required(VERSION 3.15)
 
 project(CryMP LANGUAGES C CXX RC)
 
-add_compile_definitions(NOMINMAX)
 ################################################################################
 
 if(NOT MSVC)
@@ -1665,18 +1664,12 @@ add_executable(${CRYMP_EDITOR_EXE} WIN32
     Code/Launcher/Main.cpp
     Code/Launcher/MemoryPatch.cpp
     Code/Launcher/MemoryPatch.h
-
     Code/Launcher/StartupTime.cpp
     Code/Launcher/StartupTime.h
-
-    Code/Launcher/LauncherCommon.cpp
-    Code/Launcher/LauncherCommon.h
-
     Code/Library/EXELoader.cpp
     Code/Library/EXELoader.h
     Code/Library/StringFormat.cpp
     Code/Library/StringFormat.h
-    Code/Library/StringView.h
 )
 
 add_executable(${CRYMP_SERVER_EXE} WIN32
