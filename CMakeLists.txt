@@ -1668,8 +1668,6 @@ add_executable(${CRYMP_EDITOR_EXE} WIN32
     Code/Launcher/StartupTime.h
     Code/Library/EXELoader.cpp
     Code/Library/EXELoader.h
-    Code/Library/StringFormat.cpp
-    Code/Library/StringFormat.h
 )
 
 add_executable(${CRYMP_SERVER_EXE} WIN32
