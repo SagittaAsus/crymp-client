@@ -31,6 +31,8 @@
 #include "Library/StringTools.h"
 #include "Library/WinAPI.h"
 
+#include "Library/EXELoader.h"
+
 #include "DsoalDeployer.h"
 #include "Launcher.h"
 #include "MemoryPatch.h"
@@ -39,7 +41,7 @@
 
 #ifdef EDITOR_LAUNCHER //for editor
 //#include "CryMallocHook.h"
-#include "LauncherCommon.h"
+//#include "LauncherCommon.h"
 #endif
 
 #include "config.h"
@@ -73,7 +75,7 @@ void* g_pCryGame = nullptr;
 void* g_pXToolkitPro = nullptr;
 #endif
 
-/*static void InitCrySystem(void* pCrySystem, SSystemInitParams& params)
+static void InitCrySystem(void* pCrySystem, SSystemInitParams& params)
 {
 	using CrySystemEntry = ISystem* (*)(SSystemInitParams&);
 
@@ -87,9 +89,9 @@ void* g_pXToolkitPro = nullptr;
 	{
 		throw StringTools::ErrorFormat("CrySystem initialization failed!");
 	}
-}*/
+}
 
-static void InitCrySystem(void* pCrySystem, SSystemInitParams& params)
+/*static void InitCrySystem(void* pCrySystem, SSystemInitParams& params)
 {
     using CrySystemEntry = ISystem* (*)(SSystemInitParams&);
 
@@ -106,7 +108,7 @@ static void InitCrySystem(void* pCrySystem, SSystemInitParams& params)
     {
         throw StringTools::ErrorFormat("CrySystem initialization failed!");
     }
-}
+}*/
 
 static void LogBytes(const char* message, std::size_t bytes)
 {
@@ -1117,7 +1119,9 @@ void Launcher::InitWorkingDirectory()
 
 #ifdef EDITOR_LAUNCHER //new
 
+
 static WinAPI::VersionResource g_editorVersion;
+static int g_editorGameBuild = 0;
 
 static void OnEditorVersionInit(MemoryPatch::Editor::Version* version)
 {
@@ -1132,36 +1136,119 @@ static void OnEditorVersionInit(MemoryPatch::Editor::Version* version)
     version->product_tweak = g_editorVersion.tweak;
 }
 
-static int CallAfxWinMain(void* instance, char* cmdLine)
+static void* LoadEditorDLL(const char* name)
 {
-    using TAfxWinMain = int(__stdcall*)(void*, void*, char*, int);
+    void* dll = WinAPI::DLL::Load(name);
 
+    if (!dll)
+    {
+        const unsigned long sysError = WinAPI::GetCurrentErrorCode();
+
+        if (sysError == 193)
+        {
+            throw StringTools::SysErrorFormat(
+                "Failed to load %s\n\n"
 #ifdef BUILD_64BIT
-    constexpr std::size_t ordinal = 1225;
+                "It seems you have 32-bit DLLs in Bin64 directory! Fix it!",
 #else
-    constexpr std::size_t ordinal = 1207;
+                "It seems you have 64-bit DLLs in Bin32 directory! Fix it!",
 #endif
+                name
+            );
+        }
 
-    void* mfc80 = WinAPI::DLL::Get("mfc80.dll");
+        throw StringTools::SysErrorFormat("Failed to load %s", name);
+    }
 
-    if (!mfc80)
-        throw StringTools::ErrorFormat("Failed to load MFC80.dll!");
-
-    void* function = WinAPI::DLL::GetSymbol(
-        mfc80,
-        reinterpret_cast<const char*>(ordinal)
-    );
-
-    if (!function)
-        throw StringTools::ErrorFormat("Failed to load MFC80.dll!");
-
-    return reinterpret_cast<TAfxWinMain>(function)(
-        instance,
-        nullptr,
-        cmdLine,
-        10
-    );
+    return dll;
 }
+
+static void* LoadEditorEXE(const char* name)
+{
+    EXELoader loader;
+    void* exe = loader.Load(name);
+
+    if (!exe)
+    {
+        const char* error = loader.GetErrorName();
+        const char* value = loader.errorValue ? loader.errorValue : "";
+
+        throw StringTools::ErrorFormat(
+    "Failed to load %s\n\n%s %s (error: %lu)",
+    name,
+    error,
+    value,
+    loader.sysError
+);
+    }
+
+    return exe;
+}
+
+static int GetEditorGameBuild(void* pCrySystem)
+{
+    WinAPI::VersionResource version;
+
+    if (!WinAPI::GetVersionResource(pCrySystem, version))
+    {
+        throw StringTools::SysErrorFormat(
+            "Failed to get the game version!"
+        );
+    }
+
+    return version.tweak;
+}
+
+static void VerifyEditorGameBuild(int gameBuild)
+{
+    switch (gameBuild)
+    {
+        case 4804:
+        case 5767:
+        case 5879:
+        case 6115:
+        case 6156:
+            return;
+
+        default:
+            throw StringTools::ErrorFormat(
+                "Unsupported Crysis 1 build %d!",
+                gameBuild
+            );
+    }
+}
+
+static bool IsEditorDX10()
+{
+    return !WinAPI::CmdLine::HasArg("-dx9") &&
+        (WinAPI::CmdLine::HasArg("-dx10") ||
+         WinAPI::IsVistaOrLater());
+}
+
+static bool IsEditorFMODExVersionCorrect(
+    void* pFMODEx,
+    int gameBuild)
+{
+    WinAPI::VersionResource version;
+
+    if (!WinAPI::GetVersionResource(pFMODEx, version))
+        return false;
+
+    switch (gameBuild)
+    {
+        case 5767:
+        case 5879:
+        case 6115:
+        case 6156:
+            return version.major == 0 &&
+                   version.minor == 4 &&
+                   version.patch == 7 &&
+                   version.tweak == 23;
+    }
+
+    return false;
+}
+
 
 #endif
 
@@ -1357,64 +1444,61 @@ void Launcher::LoadEngine()
 void Launcher::LoadEditor()
 {
     // Load CrySystem.dll
-    g_pCrySystem = LauncherCommon::LoadDLL("CrySystem.dll");
+    g_pCrySystem = LoadEditorDLL("CrySystem.dll");
 
-    const int gameBuild = LauncherCommon::GetGameBuild(g_pCrySystem);
-    LauncherCommon::VerifyGameBuild(gameBuild);
+    // Verify Crysis build
+    g_editorGameBuild = GetEditorGameBuild(g_pCrySystem);
+    VerifyEditorGameBuild(g_editorGameBuild);
 
-    // Load the Crysis Editor executable
-    g_pEditor = LauncherCommon::LoadEXE("Editor.exe");
+    // Load Editor.exe
+    g_pEditor = LoadEditorEXE("Editor.exe");
 
-    WinAPI::VersionResource editorVersion;
-
-    if (!WinAPI::GetVersionResource(g_pEditor, editorVersion))
+    if (!WinAPI::GetVersionResource(g_pEditor, g_editorVersion))
     {
         throw StringTools::SysErrorFormat(
             "Failed to get the Editor version!"
         );
     }
 
-    if (editorVersion.tweak != 5767)
+    if (g_editorVersion.tweak != 5767)
     {
         throw StringTools::ErrorFormat(
             "Unsupported Crysis 1 Editor build %d!",
-            editorVersion.tweak
+            g_editorVersion.tweak
         );
     }
 
-    g_editorVersion = editorVersion;
-
     // Load required engine DLLs
-    g_pCryGame = LauncherCommon::LoadDLL("CryGame.dll");
-    g_pCryAction = LauncherCommon::LoadDLL("CryAction.dll");
-    g_pCryNetwork = LauncherCommon::LoadDLL("CryNetwork.dll");
+    g_pCryGame = LoadEditorDLL("CryGame.dll");
+    g_pCryAction = LoadEditorDLL("CryAction.dll");
+    g_pCryNetwork = LoadEditorDLL("CryNetwork.dll");
 
     // Load renderer
-    if (LauncherCommon::IsDX10())
+    if (IsEditorDX10())
     {
         g_pCryRenderD3D10 =
-            LauncherCommon::LoadDLL("CryRenderD3D10.dll");
+            LoadEditorDLL("CryRenderD3D10.dll");
     }
     else
     {
         g_pCryRenderD3D9 =
-            LauncherCommon::LoadDLL("CryRenderD3D9.dll");
+            LoadEditorDLL("CryRenderD3D9.dll");
     }
 
     // Load FMOD
 #ifdef BUILD_64BIT
-    g_pFmodEx = LauncherCommon::LoadDLL("fmodex64.dll");
+    g_pFmodEx = LoadEditorDLL("fmodex64.dll");
     g_pXToolkitPro =
-        LauncherCommon::LoadDLL("ToolkitPro1042vc80x64.dll");
+        LoadEditorDLL("ToolkitPro1042vc80x64.dll");
 #else
-    g_pFmodEx = LauncherCommon::LoadDLL("fmodex.dll");
+    g_pFmodEx = LoadEditorDLL("fmodex.dll");
     g_pXToolkitPro =
-        LauncherCommon::LoadDLL("ToolkitPro1042vc80.dll");
+        LoadEditorDLL("ToolkitPro1042vc80.dll");
 #endif
 
     // Load sound system
     g_pCrySoundSystem =
-        LauncherCommon::LoadDLL("CrySoundSystem.dll");
+        LoadEditorDLL("CrySoundSystem.dll");
 }
 
 #endif
@@ -1561,12 +1645,12 @@ void Launcher::PatchEditor()
     {
         MemoryPatch::CryAction::HookCryWarning(
             g_pCryAction,
-            &LauncherCommon::OnCryWarning
+            &OnCryWarning
         );
 
         MemoryPatch::CryAction::HookGameWarning(
             g_pCryAction,
-            &LauncherCommon::OnGameWarning
+            &OnGameWarning
         );
     }
 
@@ -1574,7 +1658,7 @@ void Launcher::PatchEditor()
     {
         MemoryPatch::CryNetwork::HookCryWarning(
             g_pCryNetwork,
-            &LauncherCommon::OnCryWarning
+            &OnCryWarning
         );
     }
 
@@ -1591,7 +1675,7 @@ void Launcher::PatchEditor()
 
         MemoryPatch::CrySystem::HookCryWarning(
             g_pCrySystem,
-            &LauncherCommon::OnCryWarning
+            &OnCryWarning
         );
     }
 
@@ -1599,7 +1683,7 @@ void Launcher::PatchEditor()
     {
         MemoryPatch::CryRenderD3D9::HookAdapterInfo(
             g_pCryRenderD3D9,
-            &LauncherCommon::OnD3D9Info
+            &OnD3D9Info
         );
     }
 
@@ -1611,25 +1695,25 @@ void Launcher::PatchEditor()
 
         MemoryPatch::CryRenderD3D10::HookAdapterInfo(
             g_pCryRenderD3D10,
-            &LauncherCommon::OnD3D10Info
+            &OnD3D10Info
         );
 
         MemoryPatch::CryRenderD3D10::HookInitAPI(
             g_pCryRenderD3D10,
-            &LauncherCommon::OnD3D10Init
+            &OnD3D10Init
         );
     }
 
     if (g_pFmodEx &&
-        LauncherCommon::IsFMODExVersionCorrect(
-            g_pFmodEx,
-            LauncherCommon::GetGameBuild(nullptr)
-        ))
-    {
-        MemoryPatch::FMODEx::Fix64BitHeapAddressTruncation(
-            g_pFmodEx
-        );
-    }
+    IsEditorFMODExVersionCorrect(
+        g_pFmodEx,
+        g_editorGameBuild
+    ))
+{
+    MemoryPatch::FMODEx::Fix64BitHeapAddressTruncation(
+        g_pFmodEx
+    );
+}
 }
 
 #endif
