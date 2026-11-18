@@ -1966,12 +1966,12 @@ int Launcher::Run(char* cmdLine)
 #else
     m_params.isDedicatedServer = WinAPI::CmdLine::HasArg("-dedicated");
 #endif
-
-    if (WinAPI::CmdLine::HasArg("-headless"))
-    {
-        m_params.pUserCallback = &dummyCallback;
-        m_params.isDedicatedServer = true;
-    }
+	
+	if (WinAPI::CmdLine::HasArg("-headless"))
+	{
+		m_params.pUserCallback = &dummyCallback;
+		m_params.isDedicatedServer = true;	
+	}
 
     CryMemoryManager::Init();
 
