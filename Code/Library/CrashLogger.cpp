@@ -8,8 +8,6 @@
 #include <dbghelp.h>
 #include <psapi.h>
 
-#include <vector>
-
 #include "CrashLogger.h"
 
 #ifdef BUILD_64BIT
@@ -26,8 +24,6 @@
 static CrashLogger::LogFileProvider g_logFileProvider;
 static CrashLogger::HeapInfoProvider g_heapInfoProvider;
 static const char* g_banner;
-
-static std::vector<CrashLogger::ExtraProvider*> g_extraProviders;
 
 void DumpLuaStackTrace(std::FILE *file);
 
@@ -444,14 +440,6 @@ static void WriteCrashDump(std::FILE* file, EXCEPTION_POINTERS* exception)
 
 	DumpLuaStackTrace(file);
 
-	for (CrashLogger::ExtraProvider* provider : g_extraProviders)
-{
-    if (provider)
-    {
-        provider->OnCrash(file);
-    }
-}
-
 	WriteDumpFooter(file);
 }
 
@@ -550,12 +538,4 @@ void CrashLogger::Enable(LogFileProvider logFileProvider, HeapInfoProvider heapI
 				(vs2005_set_invalid_parameter_handler)(&InvalidParameterHandler);
 		}
 	}
-}
-
-void CrashLogger::AddExtraProvider(ExtraProvider* provider)
-{
-    if (provider)
-    {
-        g_extraProviders.push_back(provider);
-    }
 }
